@@ -21,7 +21,7 @@ def process_image(img):
     processed = cv2.GaussianBlur(processed,(11,11),0)
     
     mask = np.zeros_like(processed)
-    vertices = np.array([[10,400],[10,250],[300,200],[500,200],[800,250],[800,400],], np.int32)
+    vertices = np.array([[10,400],[10,250],[300,250],[500,250],[800,250],[800,400],], np.int32)
     cv2.fillPoly(mask, [vertices], 255)
     processed = cv2.bitwise_and(processed, mask)
 
@@ -137,7 +137,7 @@ while True:
          
     p_img = process_image(obs)
     final_lanes_coords = lines(p_img)
-    print(final_lanes_coords)
+    #print(final_lanes_coords)
     if end_lanes(final_lanes_coords) != None:
         line1, line2 = end_lanes(final_lanes_coords)
         try:
@@ -147,6 +147,11 @@ while True:
             pass
     else:   
         pass
+    
+
+    input_image = cv2.resize(p_img, (80,60))
+
+
 
     cv2.imshow("test2", p_img)
 
@@ -160,4 +165,4 @@ while True:
     obs, reward, done, infos = env.step(controls)
     #print(controls)
 
-    cv2.waitKey(0)
+cv2.waitKey(0)
