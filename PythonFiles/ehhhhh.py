@@ -52,9 +52,9 @@ class DQNAgent():
 
     def sample_memory(self):
         state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
-        states = T.tensor(state).to(self.q_eval.device)
+        states  = T.tensor(state).to(self.q_eval.device)
         rewards = T.tensor(reward).to(self.q_eval.device)
-        dones = T.tensor(done).to(self.q_eval.device)
+        dones   = T.tensor(done).to(self.q_eval.device)
         actions = T.tensor(action).to(self.q_eval.device)
         states_ = T.tensor(new_state).to(self.q_eval.device)
 
@@ -89,4 +89,15 @@ class DQNAgent():
         q_next = self.q_next.forward(states_).max(dim=1)[0]       # sprawdzam wartosci q z tablei z targetami dla batcha ze stanami ([0]bo funkcja zwraca tuple)
         # robie to zeby znalezc maksymalne akcje dla stanow w sieci next i nakierowac estymacje agenta w ich strone
 
-        q_next[dones]
+        
+        #calculation of target value  = rewards + gamma * q_next -> if next state is not terminal else, target value = rewards
+        q_next[dones] = 0.0   #using done flag as mask -> if done = true set q_next[index] = 0.0
+        q_target = rewards + self.gamma * q_next
+
+        loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
+        loss.backward()
+        self.q_eval.optimizer.step()
+        self.learn_step_counter += 1
+
+        self.decrement_epsilon()
+        

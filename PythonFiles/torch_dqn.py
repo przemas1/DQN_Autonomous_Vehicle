@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn.functional as F
 import torch.optim as optim
 import torch as T
-from utill import*
+from utils import*
 
 class LDQN(nn.Module):
     def __init__(self, lr, n_actions, input_dims):
