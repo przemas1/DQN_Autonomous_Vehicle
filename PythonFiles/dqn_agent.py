@@ -1,109 +1,103 @@
-from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
-from collections import deque
-from keras.applications.xception import Xception
-from keras.optimizers import Adam
-import random
+# input:    80 by 60 1 channel image
+# stack 4 frames
+#
+#   online and target networks, replay memory
+#   choose action copy target net, decrement epsilon
+#   save and load models
+
 import numpy as np
-import tensorflow as tf
-import time
+import torch as T
+from deep_q_learning import DeepQNetwork
+from replay_memory import ReplayBuffer
 
-REPLAY_MEMORY_SIZE = 5_000
-
-MIN_REPLAY_MEMORY_SIZE = 1_000
-MINIBATCH_SIZE = 16
-PREDICTION_BATCH_SIZE = 1
-TRAININIG_BATCH_SIZE = MINIBATCH_SIZE // 4
-UPDATE_TARGET_EVERY = 5
-MODEL_NAME = "Xception"
-
-MEMORY_FRACTION = 0.8
-MIN_REWARD = -200
-
-DISCOUNT = 0.99
-
-EPISODES = 100
-EPSILON = 1
-EPSILON_DECAY = 0.95
-MIN_EPSILON = 0.001
-
-IMG_HEIGHT = 120
-IMG_WIDTH = 160
-
-class DQNAgent:
-    def __init__(self):
-        self.model = self.create_model()
-        self.target_model = self.create_model()
-        self.target_model.set_weights(self.model.get_weights())
-
-        self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
+class DQNAgent():
+    def __init__(self, gamma, epsilon, lr, n_actions, input_dims, mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
+                replace=1000, algo=None, env_name=None, checkpoint_dir='tmp/dqn'):
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.lr = lr
+        self.n_actions = n_actions
+        self.input_dims = input_dims
+        self.mem_size = mem_size
+        self.batch_size = batch_size
+        self.eps_min = eps_min
+        self.eps_dec = eps_dec
+        self.replace = replace
+        self.algo = algo
+        self.env_name = env_name
+        self.checkpoint_dir = checkpoint_dir
+        self.action_space = [i for i in range(self.n_actions)] # do epsilon greedy action selection
+        self.learn_step_counter = 0                            # kiedy bede wpisywac wartosci z policy network do eval network
         
-        
-       # self.tensorboard = ModifiedTensorBoard()                 z tym sa problemy wersja tf1
-        self.graph = tf.compat.v1.get_default_graph()
-    def create_model(self):
-        base_model = Xception(weights=None, include_top=False, input_shape=(IMG_HEIGHT, IMG_WIDTH, 3))
-        x = base_model.output
-        x = GlobalAveragePooling2D()(x)
+        self.memory = ReplayBuffer(mem_size, input_dims, n_actions)
 
-        predictions = Dense(4, activation="linear")(x)
-        model = Model(inputs=base_model.input, outputs=predictions)
-        model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=["accuracy"])
-        return model
+        # tworzenie sieci do ewaluacji ruchow
+        self.q_eval = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_eval',checkpoint_dir=self.checkpoint_dir)
+        
+        # tworzenie sieci do taktyki nie bede w niej robic gradient descent i propagacji wstecznej
+        self.q_next = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_next',checkpoint_dir=self.checkpoint_dir)
+
+    def choose_action(self, observation):
+        if np.random.random() > self.epsilon:
+            state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
+            actions = self.q_eval.forward(state)
+            action = T.argmax(actions).item()
+        else:
+            action = np.random.choice(self.action_space)
+        
+        return action
+
+    def store_transition(self, state, action, reward, state_, done):
+        self.memory.store_transision(state, action, reward, state_, done)
+
+    def sample_memory(self):
+        state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
+        states  = T.tensor(state).to(self.q_eval.device)
+        rewards = T.tensor(reward).to(self.q_eval.device)
+        dones   = T.tensor(done).to(self.q_eval.device)
+        actions = T.tensor(action).to(self.q_eval.device)
+        states_ = T.tensor(new_state).to(self.q_eval.device)
+
+        return states, actions, rewards, states_, dones
     
-    def update_replay_memory(self, transition): pass
-        #transition = (current_state, action, reward, new_state, done)
-        #self.replay_memory.append(transition)
+    def replace_target_network(self):
+        if self.learn_step_counter % self.replace_target_cnt == 0:
+            self.q_next.load_state_dict(self.q_eval.state_dict())
+    
+    def decrement_epsilon(self):
+        self.epsilon = self.epsilon - self - self.eps_dec if self.epsilon > self.epsilon_min else self.eps_min
+    
+    def save_models(self):
+        self.q_eval.load_checkpoint()
+        self.q_next.load_checkpoint()
 
-    def train(self):
-        if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
+    # funkcja uczenia powinna sie zaczac gdy bede mial jakies sample w replay memory wiec moge poczekac z uczeniem az cale replay memory sie zapelni
+    # lub zrobic warunek: if mem ctr < batch size: nie aktywuj funcji uczenia
+        
+    def learn(self):
+        if self.memory.mem_cntr < self.batch_size:
             return
         
-        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
+        self.q_eval.optimizer.zero_grad()      # wyzeruj gradienty w optymizerze
+        self.replace_target_network()          # zmieniam siec teraz zeby nie uczyc na starych parametrach
+                                               # sample memory
+        states, actions, rewards, states_, dones = self.sample_memory()
         
-        current_states = np.array([transition[0] for tranisition in minibatch]) / 255
-        with self.graph.as_default():
-            current_qs_list = self.model.predict(current_states, PREDICTION_BATCH_SIZE)
+                                               # oblicz q_pred i q_target
+        indecies = np.arange(self.batch_size)  # zmienna do wyboru wartosci z tabeli poniewaz q_pred bedzie 2 wymiarowa
+        q_pred = self.q_eval.forward(states)[indecies, actions]   # to da wartosci dla akcji dla batcha stanow
+        q_next = self.q_next.forward(states_).max(dim=1)[0]       # sprawdzam wartosci q z tablei z targetami dla batcha ze stanami ([0]bo funkcja zwraca tuple)
+        # robie to zeby znalezc maksymalne akcje dla stanow w sieci next i nakierowac estymacje agenta w ich strone
 
-        new_current_states = np.array([transition[3] for tranisition in minibatch]) / 255
-        with self.graph.as_default():
-            future_qs_list = self.target_model.predict(new_current_states, PREDICTION_BATCH_SIZE)
-
-        X = []
-        y = [] 
-        for index, (current_state, action, reward, new_state, done) in enumerate(minibatch):
-            if not done:
-                max_future_q = np.max(future_qs_list[index])
-                new_q = reward + DISCOUNT * max_future_q
-            else:
-                new_q = reward
         
-            current_qs = current_qs_list[index]
-            current_qs[action] = new_q
+        #calculation of target value  = rewards + gamma * q_next -> if next state is not terminal else, target value = rewards
+        q_next[dones] = 0.0   #using done flag as mask -> if done = true set q_next[index] = 0.0
+        q_target = rewards + self.gamma * q_next
 
-            X.append(current_state)
-            y.append(current_qs)
+        loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
+        loss.backward()
+        self.q_eval.optimizer.step()
+        self.learn_step_counter += 1
 
-######################tensorboard step 
-
-        with self.graph.as_default():
-            self.model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False, callbacks=None)
-
-
-    def get_qs(self, state):
-        return self.model.predict(np.array(state).reshape(-1 *state.shape)/255)[0]
-
-    
-    def train_in_loop(self):
-        X = np.random.uniform(size=(1, IMG_HEIGHT, IMG_WIDTH, 3)).astype(np.float32)
-        y = np.random.uniform(size=(1, 4)).astype(np.float32)
-        with self.graph.as_default():
-            self.model.fit(X,y, verbose=False, batch_size=1, verbose=0)
-
-        self.training_initialized = True
-
-        while True:
-            if self.terminate:
-                return
-            self.train()
-            time.sleep(0.01)
+        self.decrement_epsilon()
+        

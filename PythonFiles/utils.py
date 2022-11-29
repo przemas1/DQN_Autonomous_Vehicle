@@ -57,11 +57,6 @@ Używane klasy:
 - gym.ObservationWrapper -> zajmuje się obserwacjami ze środowiska
 
 
-Podczas programowania należy miec na uwadze
-- jakich algorytmów chcemy używać
-- jakich struktur danych potrzebujemy
-- pisać kod modularnie
-
 PSEUDOKOD:
 
     Class repeatactionandmaxframe:
@@ -139,21 +134,12 @@ PSEUDOKOD:
 
     return env
         
-
-    
-implementation linus tech tips:
+implementation tips:
 - use nparray and deques    wszystko na koncu musi byc zaminenione ne nparray
-
-
-
-
 
 '''
 
-def make_env(env_name, shape=(84,84,1), repeat=4):
-    env = gym.make(env_name)
-    env = RepeatActionAndMaxFrame(env, repeat)
-    env = PreprocessFrame(shape, env)
-    env = StackFrames(env, repeat)
 
+def make_env(env_name):
+    env = gym.make(env_name)
     return env

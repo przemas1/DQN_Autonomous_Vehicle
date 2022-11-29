@@ -10,7 +10,7 @@ from statistics import mean
 pygame.init()
 # sterowanie = axis 2;  hamulec = axis 4;  gaz = axis 5
 
-env = gym.make("donkey-generated-track-v0")
+env = gym.make("donkey-mountain-track-v0")
 
 obs = env.reset()
 
@@ -161,8 +161,8 @@ while True:
     fwrd = round(acc - brk, 1)
 
     controls = [str, fwrd]
-
     obs, reward, done, infos = env.step(controls)
-    #print(controls)
+    print(reward, done,)
+ 
 
 cv2.waitKey(0)
