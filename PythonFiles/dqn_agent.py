@@ -33,17 +33,37 @@ class DQNAgent():
 
         # tworzenie sieci do ewaluacji ruchow
         self.q_eval = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_eval',checkpoint_dir=self.checkpoint_dir)
-        
+        self.q_eval = self.q_eval.float()
         # tworzenie sieci do taktyki nie bede w niej robic gradient descent i propagacji wstecznej
         self.q_next = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_next',checkpoint_dir=self.checkpoint_dir)
+        self.q_next = self.q_next.float()
 
     def choose_action(self, observation):
-        if np.random.random() > self.epsilon:
-            state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
-            actions = self.q_eval.forward(state)
-            action = T.argmax(actions).item()
-        else:
-            action = np.random.choice(self.action_space)
+        # if np.random.random() > self.epsilon:
+        #     # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
+
+        #     print(observation.shape)
+        #     state = np.moveaxis(observation, -1, 0)
+        #     print(state.shape)
+        #     state = np.expand_dims(state, axis=0)
+        #     state = T.from_numpy(state)
+        #     actions = self.q_eval.forward(state)
+        #     print(actions)
+        #     action = T.argmax(actions).item()
+        # else:
+        #     action = np.random.choice(self.action_space)
+
+        # print(observation.shape)
+        observation = observation / 255.
+        state = np.moveaxis(observation, -1, 0)
+        # print(state.shape)
+        state = np.expand_dims(state, axis=0)
+        state = T.from_numpy(state)
+        actions = self.q_eval.forward(state.float())
+        # print(actions)
+        action = T.argmax(actions).item()
+
+        action = action * (2 / 14) - 1
         
         return action
 

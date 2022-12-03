@@ -10,9 +10,11 @@ from statistics import mean
 pygame.init()
 # sterowanie = axis 2;  hamulec = axis 4;  gaz = axis 5
 
-env = gym.make("donkey-mountain-track-v0")
+env = gym.make("donkey-generated-track-v0")
 
 obs = env.reset()
+
+cv2.imwrite("testnn.png", obs)
 
 def process_image(img):
     processed = cv2.resize(img, (800,600))
@@ -151,7 +153,7 @@ while True:
 
     input_image = cv2.resize(p_img, (80,60))
 
-
+    #print(env.action_space.n)
 
     cv2.imshow("test2", p_img)
 
@@ -159,10 +161,11 @@ while True:
     brk = (joystick.get_axis(4) + 1) / 2
     acc = (joystick.get_axis(5) + 1) / 2
     fwrd = round(acc - brk, 1)
-
+    cv2.imwrite("testnn.png", p_img)
+    break
     controls = [str, fwrd]
     obs, reward, done, infos = env.step(controls)
-    print(reward, done,)
- 
+    #print(reward, done,)
+    #print(controls)
 
 cv2.waitKey(0)
