@@ -6,6 +6,7 @@ import numpy as np
 
 class ReplayBuffer():
     def __init__ (self, max_size, input_shape, n_actions):
+        n_actions = 15
         self.mem_size = max_size
         self.mem_cntr = 0
         self.state_memory = np.zeros((self.mem_size, *input_shape), dtype=np.float32)
@@ -13,14 +14,15 @@ class ReplayBuffer():
         self.new_state_memory = np.zeros((self.mem_size, *input_shape), dtype=np.float32)
         self.action_memory = np.zeros(self.mem_size, dtype=np.int64)
         self.reward_memory = np.zeros(self.mem_size, dtype=np.float32)
-        self.terminal_memory = np.zeros(self.mem_size, dtype=np.uint16)
+        self.terminal_memory = np.zeros(self.mem_size, dtype=np.int16)
 
         
 
     def store_transision(self, state, action, reward, state_, done):
         index = self.mem_cntr % self.mem_size   # zapisz w pamieci na pierwszej wolnej pozycji
         
-        self.state_memory[index]    = state     # przechodze do arraya i wpisuje wartosci state 
+        self.state_memory[index]    = state
+        #print(self.action_memory[index])     # przechodze do arraya i wpisuje wartosci state, itd.
         self.action_memory[index]   = action
         self.reward_memory[index]   = reward
         self.new_state_memory[index]= state_

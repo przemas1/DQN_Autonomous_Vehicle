@@ -39,36 +39,45 @@ class DQNAgent():
         self.q_next = self.q_next.float()
 
     def choose_action(self, observation):
-        # if np.random.random() > self.epsilon:
-        #     # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
+        if np.random.random() > self.epsilon:
+            # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
+            # #print(observation.shape)
+            # state = np.moveaxis(observation, -1, 0) 
+            # #print(state.shape)
+            # state = np.expand_dims(state, axis=0)
+            # state = T.from_numpy(state)
+            # actions = self.q_eval.forward(state)
+            # print(actions)
+            # action = T.argmax(actions).item()
 
-        #     print(observation.shape)
-        #     state = np.moveaxis(observation, -1, 0)
-        #     print(state.shape)
-        #     state = np.expand_dims(state, axis=0)
-        #     state = T.from_numpy(state)
-        #     actions = self.q_eval.forward(state)
-        #     print(actions)
-        #     action = T.argmax(actions).item()
-        # else:
-        #     action = np.random.choice(self.action_space)
+            observation = observation / 255. # normalizacja danych
+            print(observation.shape)
+            if observation.shape is not (1, 3, 120, 160):
+                state = np.moveaxis(observation, -1, 0) # zmienia pozycje liczby kanałów z pytorcha
+                print(state.shape)
+                state = np.expand_dims(state, 0)
+                print(state.shape)
+            else:
+                state = observation
+            actions = self.q_eval.forward(state) # puszczenie przez siec neuronowa 
+            action = T.argmax(actions).item()   # znalezienie maksymalnej wartosci
+            action = action * (2 / 14) - 1  # dyskretyzacja akcji
 
-        # print(observation.shape)
-        observation = observation / 255.
-        state = np.moveaxis(observation, -1, 0)
-        # print(state.shape)
-        state = np.expand_dims(state, axis=0)
-        state = T.from_numpy(state)
-        actions = self.q_eval.forward(state.float())
-        # print(actions)
-        action = T.argmax(actions).item()
+        else:   # losowa akcja
+            rand = np.random.normal(0, 0.6)
+            if rand > 1.0:
+                action = 1.0
+  
+            if rand > 1.0:
+                action = -1.0
 
-        action = action * (2 / 14) - 1
-        
+            else:
+                action = np.random.normal(0, 0.6)
+
         return action
 
     def store_transition(self, state, action, reward, state_, done):
-        self.memory.store_transision(state, action, reward, state_, done)
+        self.memory.store_transision(state, action, reward, state_, done) # interfejsowa funkcja
 
     def sample_memory(self):
         state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
@@ -80,7 +89,8 @@ class DQNAgent():
 
         return states, actions, rewards, states_, dones
     
-    def replace_target_network(self):
+    def replace_target_network(self, replace_target_cnt):
+        self.replace_target_cnt = replace_target_cnt
         if self.learn_step_counter % self.replace_target_cnt == 0:
             self.q_next.load_state_dict(self.q_eval.state_dict())
     
@@ -99,7 +109,7 @@ class DQNAgent():
             return
         
         self.q_eval.optimizer.zero_grad()      # wyzeruj gradienty w optymizerze
-        self.replace_target_network()          # zmieniam siec teraz zeby nie uczyc na starych parametrach
+        self.replace_target_network(1000)          # zmieniam siec teraz zeby nie uczyc na starych parametrach
                                                # sample memory
         states, actions, rewards, states_, dones = self.sample_memory()
         

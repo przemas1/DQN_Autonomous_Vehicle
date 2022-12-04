@@ -1,3 +1,3 @@
-import tensorflow as tf
+import torch.cuda as torch
 
-print(tf.config.list_physical_devices('GPU'))
+print(torch.current_device())
