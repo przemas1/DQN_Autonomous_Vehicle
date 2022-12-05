@@ -1,10 +1,3 @@
-# input:    80 by 60 1 channel image
-# stack 4 frames
-#
-#   online and target networks, replay memory
-#   choose action copy target net, decrement epsilon
-#   save and load models
-
 import numpy as np
 import torch as T
 from deep_q_learning import DeepQNetwork
@@ -32,10 +25,10 @@ class DQNAgent():
         self.memory = ReplayBuffer(mem_size, input_dims, n_actions)
 
         # tworzenie sieci do ewaluacji ruchow
-        self.q_eval = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_eval',checkpoint_dir=self.checkpoint_dir).cuda()
+        self.q_eval = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_eval',checkpoint_dir=self.checkpoint_dir)
         self.q_eval = self.q_eval.float()
         # tworzenie sieci do taktyki nie bede w niej robic gradient descent i propagacji wstecznej
-        self.q_next = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_next',checkpoint_dir=self.checkpoint_dir).cuda()
+        self.q_next = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_next',checkpoint_dir=self.checkpoint_dir)
         self.q_next = self.q_next.float()
 
     def choose_action(self, observation):

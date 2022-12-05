@@ -147,7 +147,7 @@ while True:
             cv2.line(p_img, (int(line2[0]), int(line2[1])), (int(line2[2]), int(line2[3])), (100,0,255), 20)
         except:
             pass
-    else:   
+    else:
         pass
     
 
