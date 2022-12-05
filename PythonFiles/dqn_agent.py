@@ -32,38 +32,27 @@ class DQNAgent():
         self.memory = ReplayBuffer(mem_size, input_dims, n_actions)
 
         # tworzenie sieci do ewaluacji ruchow
-        self.q_eval = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_eval',checkpoint_dir=self.checkpoint_dir)
+        self.q_eval = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_eval',checkpoint_dir=self.checkpoint_dir).cuda()
         self.q_eval = self.q_eval.float()
         # tworzenie sieci do taktyki nie bede w niej robic gradient descent i propagacji wstecznej
-        self.q_next = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_next',checkpoint_dir=self.checkpoint_dir)
+        self.q_next = DeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims, name = self.env_name+'_'+self.algo+'_q_next',checkpoint_dir=self.checkpoint_dir).cuda()
         self.q_next = self.q_next.float()
 
     def choose_action(self, observation):
         if np.random.random() > self.epsilon:
-            # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
-            # #print(observation.shape)
-            # state = np.moveaxis(observation, -1, 0) 
-            # #print(state.shape)
-            # state = np.expand_dims(state, axis=0)
-            # state = T.from_numpy(state)
-            # actions = self.q_eval.forward(state)
-            # print(actions)
-            # action = T.argmax(actions).item()
-
-            observation = observation / 255. # normalizacja danych
-            print(observation.shape)
-            if observation.shape is not (1, 3, 120, 160):
-                state = np.moveaxis(observation, -1, 0) # zmienia pozycje liczby kanałów z pytorcha
-                print(state.shape)
-                state = np.expand_dims(state, 0)
-                print(state.shape)
-            else:
-                state = observation
+            print(" / / / / / / / / / / / / / / / / / / / / / / / EXPLOITATION / / / ")
+            
+            #state = np.moveaxis(observation, -1, 0) # zmienia pozycje liczby kanałów z pytorcha
+            #print(state.shape)
+            state = np.expand_dims(observation, 0)
+            #print(state.shape)
+            
             actions = self.q_eval.forward(state) # puszczenie przez siec neuronowa 
             action = T.argmax(actions).item()   # znalezienie maksymalnej wartosci
             action = action * (2 / 14) - 1  # dyskretyzacja akcji
 
         else:   # losowa akcja
+            print(" \ \ \ EXPLORATION \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  ")
             rand = np.random.normal(0, 0.6)
             if rand > 1.0:
                 action = 1.0
@@ -95,7 +84,7 @@ class DQNAgent():
             self.q_next.load_state_dict(self.q_eval.state_dict())
     
     def decrement_epsilon(self):
-        self.epsilon = self.epsilon - self - self.eps_dec if self.epsilon > self.epsilon_min else self.eps_min
+        self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min else self.eps_min
     
     def save_models(self):
         self.q_eval.load_checkpoint()
@@ -105,15 +94,19 @@ class DQNAgent():
     # lub zrobic warunek: if mem ctr < batch size: nie aktywuj funcji uczenia
         
     def learn(self):
+        print(f'memory:{self.memory.mem_cntr}')
         if self.memory.mem_cntr < self.batch_size:
+        
             return
         
-        self.q_eval.optimizer.zero_grad()      # wyzeruj gradienty w optymizerze
-        self.replace_target_network(1000)          # zmieniam siec teraz zeby nie uczyc na starych parametrach
-                                               # sample memory
+
+        print('funkcja uczenia')
+        self.q_eval.optimizer.zero_grad()           # wyzeruj gradienty w optymizerze
+
+        self.replace_target_network(1000)           # zmieniam siec teraz zeby nie uczyc na starych parametrach
+                                                    
         states, actions, rewards, states_, dones = self.sample_memory()
-        
-                                               # oblicz q_pred i q_target
+                              # oblicz q_pred i q_target
         indecies = np.arange(self.batch_size)  # zmienna do wyboru wartosci z tabeli poniewaz q_pred bedzie 2 wymiarowa
         q_pred = self.q_eval.forward(states)[indecies, actions]   # to da wartosci dla akcji dla batcha stanow
         q_next = self.q_next.forward(states_).max(dim=1)[0]       # sprawdzam wartosci q z tablei z targetami dla batcha ze stanami ([0]bo funkcja zwraca tuple)
@@ -121,7 +114,7 @@ class DQNAgent():
 
         
         #calculation of target value  = rewards + gamma * q_next -> if next state is not terminal else, target value = rewards
-        q_next[dones] = 0.0   #using done flag as mask -> if done = true set q_next[index] = 0.0
+        q_next[dones.long()] = 0.0   #using done flag as mask -> if done = true set q_next[index] = 0.0
         q_target = rewards + self.gamma * q_next
 
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)

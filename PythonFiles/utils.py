@@ -1,6 +1,6 @@
 import collections 
 import cv2
-
+from preprocess import preprocessing
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
@@ -139,7 +139,20 @@ implementation tips:
 
 '''
 
+class PreprocessFrame(gym.ObservationWrapper):
+    def __init__(self, shape, env=None):
+        super(PreprocessFrame, self).__init__(env)
+        self.shape = (shape[2], shape[0], shape[1])
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=self.shape, dtype=np.float32)
+    
+    def observation(self, obs):
+        new_frame=preprocessing(obs)
+        new_obs = np.array(new_frame, dtype=np.int32).reshape(self.shape)  
+        new_obs = new_obs / 255.
+        return new_obs
 
-def make_env(env_name):
+
+def make_env(env_name, shape=(84,84,1)):
     env = gym.make(env_name)
+    env = PreprocessFrame(shape, env)
     return env

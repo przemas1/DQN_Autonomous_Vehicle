@@ -7,15 +7,6 @@ from numpy import ones,vstack
 from numpy.linalg import lstsq
 from statistics import mean
 
-pygame.init()
-# sterowanie = axis 2;  hamulec = axis 4;  gaz = axis 5
-
-env = gym.make("donkey-generated-track-v0")
-
-obs = env.reset()
-
-cv2.imwrite("testnn.png", obs)
-
 def process_image(img):
     processed = cv2.resize(img, (800,600))
     processed = cv2.cvtColor(processed, cv2.COLOR_BGR2GRAY)
@@ -118,10 +109,7 @@ def end_lanes(h_lines):
 
 
 def lines(img):
-
     lines = cv2.HoughLinesP(img, 1, np.pi/180, 180, np.array([]), 100, 5)
-    #draw_lines(img, lines)
-    
     return lines
 
 def draw_lines(img, lines):
@@ -131,15 +119,9 @@ def draw_lines(img, lines):
             cv2.line(img, (coords[0], coords[1]), (coords[2], coords[3]), [255,255,255], 3)
     except: pass
 
-while True:
-    for event in pygame.event.get(): # User did something
-
-        joystick = pygame.joystick.Joystick(0)
-        joystick.init()
-         
-    p_img = process_image(obs)
+def preprocessing(img):
+    p_img = process_image(img)
     final_lanes_coords = lines(p_img)
-    #print(final_lanes_coords)
     if end_lanes(final_lanes_coords) != None:
         line1, line2 = end_lanes(final_lanes_coords)
         try:
@@ -149,25 +131,13 @@ while True:
             pass
     else:   
         pass
-    
 
-    input_image = cv2.resize(p_img, (80,60))
+    input_image = cv2.resize(p_img, (84, 84))
+    return input_image
 
-    #print(env.action_space.n)
 
-    cv2.imshow("test2", p_img)
-
-    str = round(joystick.get_axis(2), 1)
-    brk = (joystick.get_axis(4) + 1) / 2
-    acc = (joystick.get_axis(5) + 1) / 2
-    fwrd = round(acc - brk, 1)
-    cv2.imwrite("testnn.png", p_img)
-   
-
-    controls = [str, fwrd]
-    obs, reward, done, infos = env.step(controls)
-    print(reward)
-    #print(reward, done,)
-    #print(controls)
-
-cv2.waitKey(0)
+# sample = cv2.imread('C:/Users/przpi/Documents/GitHub/testestest.jpg')
+# processed = preprocessing(sample)
+# print(processed.shape)
+# cv2.imshow('test', cv2.resize(processed, (128,128)))
+# cv2.waitKey(0)

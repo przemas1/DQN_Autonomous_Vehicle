@@ -10,8 +10,8 @@ class DeepQNetwork(nn.Module):
     def __init__ (self, lr, n_actions, name, input_dims, checkpoint_dir):
     #     super(DeepQNetwork, self).__init__()
     #     # checkpoint directory
-    #     self.checkpoint_dir = checkpoint_dir 
-    #     self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
+        self.checkpoint_dir = checkpoint_dir 
+        self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
     #     self.conv1 = nn.Conv2d(input_dims[0], 32, 8, stride=4)  # input dims[0] to liczba kanałów
     #                                                             # 32 - filtry, 8 - kernel size, stride - liczba pixeli do przesuniecia kernela
@@ -51,20 +51,21 @@ class DeepQNetwork(nn.Module):
 
     #def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.conv1 = nn.Conv2d(1, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(15984, 84)
+        self.fc1 = nn.Linear(5184, 84)
         self.fc2 = nn.Linear(84, n_actions)
 
 
         self.optimizer = optim.RMSprop(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
-        self.device = T.device('cpu') 
+        self.device = T.device('cuda:0') 
         self.to(self.device)
 
     def forward(self, x):
         x = T.tensor(x, dtype=T.float)
+        x = x.to('cuda:0')
         print(x.shape)
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
