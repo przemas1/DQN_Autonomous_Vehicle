@@ -22,7 +22,7 @@ class DeepQNetwork(nn.Module):
     def forward(self, x):
         x = T.tensor(x, dtype=T.float)
         x = x.to('cuda:0')
-        print(x.shape)
+        # print(x.shape)
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         x = T.flatten(x, 1) # flatten all dimensions except batch

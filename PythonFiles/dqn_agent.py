@@ -37,9 +37,11 @@ class DQNAgent:
             # puszczenie przez siec neuronowa
             actions = self.q_eval.forward(state)
             # znalezienie maksymalnej wartosci
-            action = T.argmax(actions).item()
+            action1 = T.argmax(actions).item()
             # dyskretyzacja akcji
-            action = action * (2 / 14)
+            # action = action1 * (2 / 14) - 1
+            action = action1 * (2 / 15) - 1
+            print(action1)
 
         else:   # losowa akcja
             print(" \ \ \ EXPLORATION \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ")
@@ -101,7 +103,7 @@ class DQNAgent:
         q_next[dones.long()] = 0.0   #using done flag as mask -> if done = true set q_next[index] = 0.0
         q_target = rewards + self.gamma * q_next
 
-        print('qtarget', q_target)
+        #print('qtarget', q_target)
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
         loss.backward()
         self.q_eval.optimizer.step()

@@ -5,9 +5,10 @@ from csv import writer
 import gym_donkeycar
 import pygame
 import serial
+import time
+
 
 CONTROLER = False
-
 if __name__ == '__main__':
     env = make_env("donkey-generated-roads-v0")
     # możliwe mapy:
@@ -17,13 +18,23 @@ if __name__ == '__main__':
     best_score = 0
     n_games = 1000000
 
+
+
+
+
     #                   przykładowe do sprawdzenia
-    batch_size = 64     # 64, 32
+    batch_size = 32     # 64, 32
     replace = 1         # 1, 100
     eps_dec = 1e-5      # 1e-5, 1e-3
-    mem_size = 10000      # 100, 1000, 10000
-    gamma = 0.99        # 1.2, 0.8
-    lr = 0.0001          # 0.01, 0.001 v , 0.0001 v , 0.00001 v
+    mem_size = 10000     # 100, 1000, 10000
+    gamma = 1.2        # 1.2, 0.8
+    lr = 0.0001         # 0.01, 0.001 v , 0.0001 v , 0.00001 v
+
+
+
+
+
+
     if CONTROLER:
         pygame.init()
         ser = serial.Serial(port='COM3', baudrate=115200, bytesize=8, timeout=3, stopbits=serial.STOPBITS_ONE)
@@ -45,11 +56,13 @@ if __name__ == '__main__':
 
     # rozpoczęcie epizodu
     for i in range(n_games):
+        episode_start = time.time()
         done = False
         score = 0   
         obs = env.reset()
         # rozpoczęcie kroku
         while not done:
+
             # epsilon
             action = agent.choose_action(obs)
 
@@ -58,7 +71,7 @@ if __name__ == '__main__':
                 joy_action = int((action + 1) * 128)
                 if joy_action > 255: joy_action = 255
                 if joy_action < 0: joy_action = 0
-                print(joy_action)
+                # print(joy_action)
                 ser.write(bytearray([joy_action, 0]))
 
                 # kontroler
@@ -67,17 +80,20 @@ if __name__ == '__main__':
                     joystick.init()
                 str = round(joystick.get_axis(2), 1)
                 if str > 255: str = 255
-                if str< 0: str = 0
-
+                if str < 0: str = 0
 
                 # krok
                 obs_, gym_reward, done, info = env.step([str, 0.7])
-            else :
+            else:
                 obs_, gym_reward, done, info = env.step([action, 0.7])
+
             # alternatywna nagroda
             cte = info['cte']
-            reward = 1 - (abs(cte) / 8)
+            episode_length = time.time()-episode_start
+            reward = (1 - (abs(cte) / 8)) * episode_length
 
+            # print(reward, 'nagroda')
+            # print(time.time()-episode_start, 'mnożnik')
             # nagroda gym
             # reward = gym_reward
             # print("reward", reward)
